@@ -5,3 +5,6 @@ Statement:
 direction (export and import) and port (Paranaguá, Santos). We limited the scope to the ports of Paranaguá and Santos and listed two potential data sources (administrations of each port):
 1) https://www.appaweb.appa.pr.gov.br/appaweb/pesquisa.aspx?WCI=relLineUpRetroativo
 2) https://www.portodesantos.com.br/informacoes-operacionais/operacoesportuarias/navegacao-e-movimento-de-navios/navios-esperados-carga/"
+
+I Web scrapped those websites using BeautifulSoup4 based on the columns of the tables.
+I did data science with Pandas, exporting to csv.
