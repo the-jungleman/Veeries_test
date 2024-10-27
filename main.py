@@ -17,46 +17,59 @@ class VolDayProduct:
 
             data = []
             for tab_index, tab in enumerate(tabs):
+                
                 for r in tqdm(tab.find_all('tr')[1:], desc=f"Processing rows in table {tab_index + 1}"):
                     columns = r.find_all('td')
+                    len_columns = len(columns)
 
-                    if harbor_name == "Santos" and len(columns) > 9:
+                    if harbor_name == "Santos" and len_columns > 9:
                         product = columns[8].text.strip()
                         volume_str = columns[9].text.strip().replace('.', '')
                         sentido = columns[7].text.strip()
 
-                    elif harbor_name == "Paranaguá" and len(columns) > 17:
+                    elif harbor_name == "Paranaguá" and len_columns > 17:
                         title = tab.find_previous('h2')
                         product, volume_str, sentido = '', '', ''
 
+                        #21 Atracados
+                        #17 Programados esperados despachados
+                        #20 ao largo pra retracacao
+                        #18 ao largo
+                        #12 outros
                         if title:
-                            match title.text:
-                                case t if "ATRACADOS" in t:
+                            match len_columns:
+                                case 21:
                                     product = columns[13].text.strip()
                                     volume_str = columns[16].text.strip().replace('.', '')
                                     sentido = columns[9].text.strip()
                                 
-                                case t if "PROGRAMADOS" in t or "AO LARGO PARA REATRACAÇÃO" in t:
+                                # case t if "PROGRAMADOS" in t or "AO LARGO PARA REATRACAÇÃO" in t:
+                                    # product = columns[12].text.strip()
+                                    # volume_str = columns[17].text.strip().replace('.', '')
+                                    # sentido = columns[9].text.strip()
+                                
+                                case    20:
                                     product = columns[12].text.strip()
                                     volume_str = columns[17].text.strip().replace('.', '')
                                     sentido = columns[9].text.strip()
-                                
-                                case t if "AO LARGO" in t:
+
+                                case 18:
                                     product = columns[11].text.strip()
                                     volume_str = columns[16].text.strip().replace('.', '')
                                     sentido = columns[8].text.strip()
                                 
-                                case t if "ESPERADOS" in t:
+                                case 17:
+
                                     product = columns[11].text.strip()
                                     volume_str = columns[15].text.strip().replace('.', '')
                                     sentido = columns[8].text.strip()
                                 
-                                case t if "DESPACHADOS" in t:
-                                    product = columns[12].text.strip()
-                                    volume_str = columns[16].text.strip().replace('.', '')
-                                    sentido = columns[9].text.strip()
+                                # case t if "DESPACHADOS" in t:
+                                    # product = columns[12].text.strip()
+                                    # volume_str = columns[16].text.strip().replace('.', '')
+                                    # sentido = columns[9].text.strip()
                                 
-                                case t if "APOIO PORTUÁRIO / OUTROS" in t:
+                                case 12:
                                     continue
 
                     else:
