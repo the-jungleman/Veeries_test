@@ -2,7 +2,7 @@ import requests
 import urllib3
 from bs4 import BeautifulSoup
 import pandas as pd
-from tqdm import tqdm  # Importa tqdm para a barra de progresso
+from tqdm import tqdm
 
 class VolDayProduct:
     def extract_table(self, url, harbor_name):
@@ -17,7 +17,6 @@ class VolDayProduct:
 
             data = []
             for tab_index, tab in enumerate(tabs):
-                # Usa tqdm para mostrar o progresso enquanto itera pelas linhas da tabela
                 for r in tqdm(tab.find_all('tr')[1:], desc=f"Processing rows in table {tab_index + 1}"):
                     columns = r.find_all('td')
 
@@ -30,39 +29,39 @@ class VolDayProduct:
                         title = tab.find_previous('h2')
                         product, volume_str, sentido = '', '', ''
 
-                        if len(columns) == 21:
-                            product = columns[12].text.strip()
-                            volume_str = columns[16].text.strip().replace('.', '')
-                            sentido = columns[9].text.strip()
-
-                        elif len(columns) == 20:
-                            product = columns[12].text.strip()
-                            volume_str = columns[17].text.strip().replace('.', '')
-                            sentido = columns[9].text.strip()
-
-                        elif len(columns) == 17:
-                            if title and "ESPERADOS" in title.text:    
-                                product = columns[11].text.strip()
-                                volume_str = columns[15].text.strip().replace('.', '')
-                                sentido = columns[8].text.strip()
-                            else:
-                                # DESPACHADOS,
-                                product = columns[12].text.strip()
-                                volume_str = columns[17].text.strip().replace('.', '')
-                                sentido = columns[9].text.strip()
-
-                        elif len(columns) == 18:
-                            product = columns[11].text.strip()
-                            volume_str = columns[16].text.strip().replace('.', '')
-                            sentido = columns[8].text.strip()
-
-                        else:
-                            continue
+                        if title:
+                            match title.text:
+                                case t if "ATRACADOS" in t:
+                                    product = columns[13].text.strip()
+                                    volume_str = columns[16].text.strip().replace('.', '')
+                                    sentido = columns[9].text.strip()
+                                
+                                case t if "PROGRAMADOS" in t or "AO LARGO PARA REATRACAÇÃO" in t:
+                                    product = columns[12].text.strip()
+                                    volume_str = columns[17].text.strip().replace('.', '')
+                                    sentido = columns[9].text.strip()
+                                
+                                case t if "AO LARGO" in t:
+                                    product = columns[11].text.strip()
+                                    volume_str = columns[16].text.strip().replace('.', '')
+                                    sentido = columns[8].text.strip()
+                                
+                                case t if "ESPERADOS" in t:
+                                    product = columns[11].text.strip()
+                                    volume_str = columns[15].text.strip().replace('.', '')
+                                    sentido = columns[8].text.strip()
+                                
+                                case t if "DESPACHADOS" in t:
+                                    product = columns[12].text.strip()
+                                    volume_str = columns[16].text.strip().replace('.', '')
+                                    sentido = columns[9].text.strip()
+                                
+                                case t if "APOIO PORTUÁRIO / OUTROS" in t:
+                                    continue
 
                     else:
                         continue
 
-                    # Lógica de volume
                     try:
                         volume = int(volume_str) if volume_str.isdigit() else 0
                     except ValueError:
@@ -95,12 +94,10 @@ if __name__ == "__main__":
     all_data = data_paranagua + data_santos
     df = pd.DataFrame(all_data)
 
-    # Verifique o total de linhas extraídas antes do agrupamento
     print(f"Total de linhas extraídas: {len(df)}")
-    
-    print(df)  # Exibe todos os dados antes do agrupamento
+    print(df)
     df.to_csv("volume_diario_ports_semagp.csv", index=False)
-    # Agrupamento e soma de volumes
+    
     resultado = df.groupby(['Porto', 'Produto', 'Sentido']).agg({'Volume': 'sum'}).reset_index()
     print(f"\nAgrupamento e soma de volumes:\n{resultado}")
     resultado.to_csv("volume_diario_ports.csv", index=False)
