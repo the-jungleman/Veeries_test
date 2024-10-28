@@ -7,57 +7,56 @@ from tqdm import tqdm
 class VolDayProduct:
     def extract_table(self, url, harbor_name):
         try:
-            # Disable warnings for insecure requests
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             res = requests.get(url, verify=False)
             soup = BeautifulSoup(res.content, 'html.parser')
-
-            print(f"HTML content fetched from {url[:50]}...")
             tabs = soup.find_all('table')
-            print(f"Found {len(tabs)} tables on {url}")
+            # print(f"Found {len(tabs)} tables on {url}")
             data = []
-            headers = [th.text.strip() for th in tab.find_all('th')]
-               
-            for tab_index, tab in enumerate(tabs):
-                # Iterate through rows in the table with progress indication
-                for r in tqdm(tab.find_all('tr')[1:], desc=f"Processing rows in table {tab_index + 1}"):
-                    columns = r.find_all('td')
-                    # len_columns = len(columns)
 
-                    row_data = {header: columns[i].text.strip() for i, header in enumerate(headers) if i < len(columns)}
-                    if harbor_name == "Santos" and len_columns > 9:
+            for tab in tabs:
+                headers = [th.text.strip() for th in tab.find_all('th')]
+
+                rows = tab.find_all('tr')
+                for r in tqdm(rows[1:]):
+                    columns = r.find_all('td')
+                    if len(columns) < 1:
+                        continue
+                    
+                    if harbor_name == "Santos" and len(columns) > 9:
                         product = columns[8].text.strip()
                         volume_str = columns[9].text.strip().replace('.', '')
                         sentido = columns[7].text.strip()
+                        try:
+                            volume = float(volume_str)
+                        except ValueError:
+                            volume = volume_str  # Manter string caso não seja possível converter
 
-                    elif harbor_name == "Paranaguá":
-                        title = tab.find_previous('h2')
-                        if 'Produto' in row_data and 'Sentido' in row_data:
-                            product = row_data['Produto']
-                            sentido = row_data['Sentido']
-                        elif    'Prancha (t/dia)'   in  row_data    or  'Previsto':
-                            volume_str = row_data['Volume'].replace('.', '')
-                        else:
-                            continue
-
-                    else:
-                        continue
-
-                    # Handle volume conversion
-                    try:
-                        volume = int(volume_str) if volume_str.isdigit() else 0
-                    except ValueError:
-                        print(f"Invalid volume value: '{volume_str}' found in {url}")
-                        volume = 0
-
-                    # Append data if product and sentido are valid
-                    if product and sentido:
                         data.append({
-                            "Produto": product,
+                            "Porto": harbor_name,
+                            "Mercadoria": product,
                             "Sentido": sentido,
-                            "Volume": volume,
-                            "Porto": harbor_name
+                            "Volume": volume
                         })
+
+                    if  harbor_name=="Paranaguá":
+                        row_data = {header: columns[i].text.strip() for i, header in enumerate(headers) if i < len(columns)}
+
+                        # Inicializa variáveis para armazenar os dados desejados
+                        mercadoria = row_data.get('Operador', '')
+                        sentido = row_data.get('DWT', row_data.get('DWT', ''))
+                        previsao = row_data.get('Previsto', '')
+                        prancha = row_data.get('Prancha (t/dia)', '')
+
+                        # Certifica-se de que as colunas foram extraídas corretamente
+                        if mercadoria and sentido and (previsao or prancha):
+                            data.append({
+                                "Porto": harbor_name,
+                                "Mercadoria": mercadoria,
+                                "Sentido": sentido,
+                                "Volume": previsao or prancha,
+                            })
+                            # print(f"Data extracted: Porto={harbor_name}, Mercadoria={mercadoria}, Sentido={sentido}, Volume={previsao or prancha}")
 
             return data
 
@@ -71,23 +70,23 @@ if __name__ == "__main__":
     
     vol_day_product = VolDayProduct()
 
-    # Extract data from both harbors
     data_paranagua = vol_day_product.extract_table(url_paranagua, "Paranaguá")
     data_santos = vol_day_product.extract_table(url_santos, "Santos")
 
-    # Combine and create DataFrame
     all_data = data_paranagua + data_santos
     df = pd.DataFrame(all_data)
 
-    print(f"Total de linhas extraídas: {len(df)}")
     print(df)
-    df.to_csv("volume_diario_ports_semagp.csv", index=False)
-    
-    # Group by Porto, Produto, and Sentido, and sum volumes
-    resultado = df.groupby(['Porto', 'Produto', 'Sentido']).agg({'Volume': 'sum'}).reset_index()
-    
-    print(f"\nAgrupamento e soma de volumes:\n{resultado}")
-    
-    # Export the grouped results to a CSV file
-    resultado.to_csv("volume_diario_ports.csv", index=False)
-    print("Dados exportados com sucesso para volume_diario_ports.csv")
+
+    if not df.empty:
+        df.to_csv("volume_diario_ports_semagp.csv", index=False)
+        
+        # Agrupamento dos dados para sumarizar o volume
+        resultado = df.groupby(['Porto', 'Mercadoria', 'Sentido']).agg({'Volume': 'first'}).reset_index()
+        
+        print(f"\nAgrupamento de dados:\n{resultado}")
+        
+        resultado.to_csv("volume_diario_ports.csv", index=False)
+        print("Dados exportados com sucesso para volume_diario_ports.csv")
+    else:
+        print("Nenhum dado para exportar.")
