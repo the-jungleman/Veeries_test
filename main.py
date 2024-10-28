@@ -44,7 +44,7 @@ class VolDayProduct:
 
                         # Inicializa variáveis para armazenar os dados desejados
                         mercadoria = row_data.get('Operador', '')
-                        sentido = row_data.get('DWT', row_data.get('DWT', ''))
+                        sentido = row_data.get('Bordo', row_data.get('Bordo', ''))
                         previsao = row_data.get('Previsto', '')
                         prancha = row_data.get('Prancha (t/dia)', '')
 
